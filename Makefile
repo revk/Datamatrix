@@ -1,5 +1,8 @@
 all: git datamatrix
 
+update:
+	git submodule update --remote --merge
+
 datamatrix: iec16022.c Image/image.o Reedsol/reedsol.o iec16022ecc200.o
 	cc -O -o $@ $< Image/image.o Reedsol/reedsol.o iec16022ecc200.o -lpopt -lz -IImage -IReedsol
 
