@@ -441,7 +441,7 @@ int main(int argc, const char *argv[])
          if (isupper(*format))
             ImageSVGPath(i, stdout, 1);
          else
-            ImageWriteSVG(i, fileno(stdout), 0, -1, barcode, scale);
+            ImageWriteSVG(i, stdout, 0, -1, barcode, scale);
          ImageFree(i);
       }
       break;
@@ -459,22 +459,19 @@ int main(int argc, const char *argv[])
                   ImagePixel(i, x, y) = 1;
          if (*format == 'd')
          {
-            char tmp[] = "/tmp/XXXXXX";
-            int fh = mkstemp(tmp);
-            if (fh < 0)
-               err(1, "Fail %s", tmp);
-            unlink(tmp);
-            ImageWritePNG(i, fh, 0, -1, barcode);
-            lseek(fh, 0, SEEK_SET);
+            char *buf;
+            size_t len;
+            FILE *f = open_memstream(&buf, &len);
+            ImageWritePNG(i, f, 0, -1, barcode);
+            fclose(f);
             printf("data:image/png;base64,");
             static const char BASE64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
             int b = 0,
-                v = 0;
-            while (1)
+                v = 0,
+                i = 0;
+            while (i < len)
             {
-               unsigned char c;
-               if (read(fh, &c, 1) != 1)
-                  break;
+               unsigned char c = buf[i++];
                b += 8;
                v = (v << 8) | c;
                while (b >= 6)
@@ -497,9 +494,9 @@ int main(int argc, const char *argv[])
                b -= 6;
                putchar('=');
             }
-            close(fh);
+            free(buf);
          } else
-            ImageWritePNG(i, fileno(stdout), 0, -1, barcode);
+            ImageWritePNG(i, stdout, 0, -1, barcode);
          ImageFree(i);
       }
       break;
