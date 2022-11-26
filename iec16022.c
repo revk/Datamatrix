@@ -504,6 +504,9 @@ int main(int argc, const char *argv[])
       errx(1, "Unknown output format %s\n", format);
       break;
    }
+   
+   free(encoding);
+   free(grid);
 
    return 0;
 }
