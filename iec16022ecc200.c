@@ -272,7 +272,7 @@ char ecc200encode(unsigned char *t, int tl, unsigned char *s, int sl, char *enco
             unsigned int out[6];
             int p = 0;
             const char *e = 0,
-                *s2 = "!\"#$%&'()*+,-./:;<=>?@[\\]_",
+                *s2 = "!\"#$%&'()*+,-./:;<=>?@[\\]^_",
                 *s3 = 0;
             if (newenc == 'c')
             {
@@ -921,9 +921,9 @@ unsigned char *iec16022ecc200_opts(iec16022ecc200_t o)
          for (x = 0; x < W; x += matrix->FW)
          {
             for (y = 0; y < H; y++)
-               grid[(matrix->FH - 1 - y + q) * (W + q + q) + q + x] = 1;
+                grid[(H - 1 - y + q) * (W + q + q) + q + x] = 1;
             for (y = 0; y < H; y += 2)
-               grid[(matrix->FH - 1 - y + q) * (W + q + q) + q + x + matrix->FW - 1] = 1;
+               grid[(H - 1 - y + q) * (W + q + q) + q + x + matrix->FW - 1] = 1;
          }
          for (y = 0; y < NR; y++)
          {
