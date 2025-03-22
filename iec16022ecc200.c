@@ -248,7 +248,7 @@ static void ecc200(unsigned char *binary, int bytes, int datablock, int rsblock)
 
 // perform encoding for ecc200, source s len sl, to target t len tl, using optional encoding control string e
 // return 1 if OK, 0 if failed. Does all necessary padding to tl
-char ecc200encode(unsigned char *t, int tl, unsigned char *s, int sl, char *encoding, int *lenp)
+char ecc200encode(unsigned char *t, int tl, unsigned char *s, int sl, char *encoding, unsigned int *lenp)
 {
    char enc = 'a';              // start in ASCII encoding mode
    int tp = 0,
