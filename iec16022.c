@@ -513,7 +513,7 @@ main (int argc, const char *argv[])
             if (S > 1)
                fprintf (o, " transform=\"scale(%d)\"", S);
             fprintf (o, "/>");
-            fprintf (o, "\"/></svg>");
+            fprintf (o, "</g></svg>");
          }
          if (img || data)
          {
