@@ -70,6 +70,41 @@ dumphex (unsigned char *grid, int W, int H, unsigned char p, int S, int B)
       printf ("\n");
 }
 
+void
+outdata (char *buf, size_t len, const char *mime)
+{
+   printf ("data:%s;base64,", mime);
+   static const char BASE64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+   int b = 0,
+      v = 0,
+      i = 0;
+   while (i < len)
+   {
+      unsigned char c = buf[i++];
+      b += 8;
+      v = (v << 8) | c;
+      while (b >= 6)
+      {
+         b -= 6;
+         putchar (BASE64[(v >> b) & 0x3F]);
+      }
+   }
+   if (b)
+   {
+      b += 8;
+      v = (v << 8);
+      b -= 6;
+      putchar (BASE64[(v >> b) & 0x3F]);
+   }
+   while (b)
+   {
+      if (b < 6)
+         b += 8;
+      b -= 6;
+      putchar ('=');
+   }
+}
+
 int
 main (int argc, const char *argv[])
 {
@@ -91,6 +126,8 @@ main (int argc, const char *argv[])
       ecclen = 0,
       square = 0,
       noquiet = 0;;
+   int data = 0;
+   int img = 0;
    int formatcode = 0;
    double scale = -1,
       dpi = -1;
@@ -109,8 +146,8 @@ main (int argc, const char *argv[])
       {"svg", 0, POPT_ARG_VAL, &formatcode, 'v', "SVG"},
       {"path", 0, POPT_ARG_VAL, &formatcode, 'V', "SVG path"},
       {"png", 0, POPT_ARG_VAL, &formatcode, 'p', "PNG"},
-      {"data", 0, POPT_ARG_VAL, &formatcode, 'd', "PNG Data URI"},
-      {"img", 0, POPT_ARG_VAL, &formatcode, 'D', "PNG Data URI as img"},
+      {"data", 0, POPT_ARG_NONE, &data, 0, "data: URL"},
+      {"img", 0, POPT_ARG_NONE, &img, 0, "data: URL as <img...>"},
       {"eps", 0, POPT_ARG_VAL, &formatcode, 'e', "EPS"},
       {"ps", 0, POPT_ARG_VAL, &formatcode, 'g', "Postscript"},
       {"text", 0, POPT_ARG_VAL, &formatcode, 't', "Text"},
@@ -146,14 +183,14 @@ main (int argc, const char *argv[])
    char formatspace[2] = { };
    if (formatcode)
       *(format = formatspace) = formatcode;
-   if (!format)
+   if (!format && (data || img))
+      format = "p";             // Default
+   if (!format || !*format)
       format = "t";             // Default
    if (outfile && !strcmp (outfile, "data:"))
    {                            // Legacy format for data:
-      if (*format != 'p')
-         errx (1, "data: only for png");
       outfile = NULL;
-      format = "d";
+      data = 1;
    }
    if (outfile && strcmp (outfile, "-") && !freopen (outfile, "w", stdout))
       err (1, "%s", outfile);
@@ -446,12 +483,17 @@ main (int argc, const char *argv[])
       break;
    case 'v':                   // svg
       {
+         FILE *o = stdout;
+         char *buf = NULL;
+         size_t len = 0;
+         if (data || img)
+            o = open_memstream (&buf, &len);
          if (!isupper (*format))
          {
-            printf
-               ("<svg xmlns:svg=\"http://www.w3.org/2000/svg\" xmlns=\"http://www.w3.org/2000/svg\" version=\"1.0\" width=\"%d\" height=\"%d\"><g><rect width=\"%d\" height=\"%d\" fill=\"white\"/>",
-                W * S, H * S, W * S, H * S);
-            printf ("<g fill=\"black\" stroke=\"none\"><path d=\"");
+            fprintf (o,
+                     "<svg xmlns:svg=\"http://www.w3.org/2000/svg\" xmlns=\"http://www.w3.org/2000/svg\" version=\"1.0\" width=\"%d\" height=\"%d\"><g><rect width=\"%d\" height=\"%d\" fill=\"white\"/>",
+                     W * S, H * S, W * S, H * S);
+            fprintf (o, "<g fill=\"black\" stroke=\"none\"><path d=\"");
          }
          int x,
            y;
@@ -463,19 +505,28 @@ main (int argc, const char *argv[])
             for (x = 0; x < W; x++)
                if (grid[y * W + x] & 1)
                   ImagePixel (i, x, y) = 1;
-         ImageSVGPath (i, stdout, 1);
+         ImageSVGPath (i, o, 1);
          ImageFree (i);
          if (!isupper (*format))
          {
-            printf ("\"");
+            fprintf (o, "\"");
             if (S > 1)
-               printf (" transform=\"scale(%d)\"", S);
-            printf ("/>");
-            printf ("\"/></svg>");
+               fprintf (o, " transform=\"scale(%d)\"", S);
+            fprintf (o, "/>");
+            fprintf (o, "\"/></svg>");
+         }
+         if (img || data)
+         {
+            fclose (o);
+            if (img)
+               printf ("<img src=\"");
+            outdata (buf, len, "image/svg+xml");
+            free (buf);
+            if (img)
+               printf ("\">");
          }
       }
       break;
-   case 'd':                   // data: URI
    case 'p':                   // png
       {
          int x,
@@ -487,47 +538,18 @@ main (int argc, const char *argv[])
             for (x = 0; x < W * S; x++)
                if (grid[(y / S) * W + (x / S)])
                   ImagePixel (i, x, y) = 1;
-         if (tolower (*format) == 'd')
+         if (data||img)
          {
-            if (*format == 'D')
+            if (img)
                printf ("<img src=\"");
             char *buf;
             size_t len;
             FILE *f = open_memstream (&buf, &len);
             ImageWritePNG (i, f, 0, -1, barcode);
             fclose (f);
-            printf ("data:image/png;base64,");
-            static const char BASE64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-            int b = 0,
-               v = 0,
-               i = 0;
-            while (i < len)
-            {
-               unsigned char c = buf[i++];
-               b += 8;
-               v = (v << 8) | c;
-               while (b >= 6)
-               {
-                  b -= 6;
-                  putchar (BASE64[(v >> b) & 0x3F]);
-               }
-            }
-            if (b)
-            {
-               b += 8;
-               v = (v << 8);
-               b -= 6;
-               putchar (BASE64[(v >> b) & 0x3F]);
-            }
-            while (b)
-            {
-               if (b < 6)
-                  b += 8;
-               b -= 6;
-               putchar ('=');
-            }
+            outdata (buf, len, "image/png");
             free (buf);
-            if (*format == 'D')
+            if (img)
                printf ("\">");
          } else
             ImageWritePNG (i, stdout, 0, -1, barcode);
