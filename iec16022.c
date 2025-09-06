@@ -110,6 +110,7 @@ main (int argc, const char *argv[])
       {"path", 0, POPT_ARG_VAL, &formatcode, 'V', "SVG path"},
       {"png", 0, POPT_ARG_VAL, &formatcode, 'p', "PNG"},
       {"data", 0, POPT_ARG_VAL, &formatcode, 'd', "PNG Data URI"},
+      {"img", 0, POPT_ARG_VAL, &formatcode, 'D', "PNG Data URI as img"},
       {"eps", 0, POPT_ARG_VAL, &formatcode, 'e', "EPS"},
       {"ps", 0, POPT_ARG_VAL, &formatcode, 'g', "Postscript"},
       {"text", 0, POPT_ARG_VAL, &formatcode, 't', "Text"},
@@ -486,8 +487,10 @@ main (int argc, const char *argv[])
             for (x = 0; x < W * S; x++)
                if (grid[(y / S) * W + (x / S)])
                   ImagePixel (i, x, y) = 1;
-         if (*format == 'd')
+         if (tolower (*format) == 'd')
          {
+            if (*format == 'D')
+               printf ("<img src=\"");
             char *buf;
             size_t len;
             FILE *f = open_memstream (&buf, &len);
@@ -524,6 +527,8 @@ main (int argc, const char *argv[])
                putchar ('=');
             }
             free (buf);
+            if (*format == 'D')
+               printf ("\">");
          } else
             ImageWritePNG (i, stdout, 0, -1, barcode);
          ImageFree (i);
