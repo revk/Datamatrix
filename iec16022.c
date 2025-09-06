@@ -140,15 +140,6 @@ main (int argc, const char *argv[])
       poptPrintUsage (optCon, stderr, 0);
       return -1;
    }
-   if (outfile && !strcmp (outfile, "data:"))
-   {                            // Legacy format for data:
-      if (*format != 'p')
-         errx (1, "data: only for png");
-      outfile = NULL;
-      *format = 'd';
-   }
-   if (outfile && strcmp (outfile, "-") && !freopen (outfile, "w", stdout))
-      err (1, "%s", outfile);
    if (formatcode && format)
       errx (1, "--format is deprecated");
    char formatspace[2] = { };
@@ -156,6 +147,15 @@ main (int argc, const char *argv[])
       *(format = formatspace) = formatcode;
    if (!format)
       format = "t";             // Default
+   if (outfile && !strcmp (outfile, "data:"))
+   {                            // Legacy format for data:
+      if (*format != 'p')
+         errx (1, "data: only for png");
+      outfile = NULL;
+      format = "d";
+   }
+   if (outfile && strcmp (outfile, "-") && !freopen (outfile, "w", stdout))
+      err (1, "%s", outfile);
 
    if (scale >= 0 && dpi >= 0)
       errx (1, "--mm or --dpi");
@@ -445,6 +445,13 @@ main (int argc, const char *argv[])
       break;
    case 'v':                   // svg
       {
+         if (!isupper (*format))
+         {
+            printf
+               ("<svg xmlns:svg=\"http://www.w3.org/2000/svg\" xmlns=\"http://www.w3.org/2000/svg\" version=\"1.0\" width=\"%d\" height=\"%d\"><g><rect width=\"%d\" height=\"%d\" fill=\"white\"/>",
+                W * S, H * S, W * S, H * S);
+            printf ("<g fill=\"black\" stroke=\"none\"><path d=\"");
+         }
          int x,
            y;
          Image *i;
@@ -455,11 +462,16 @@ main (int argc, const char *argv[])
             for (x = 0; x < W; x++)
                if (grid[y * W + x] & 1)
                   ImagePixel (i, x, y) = 1;
-         if (isupper (*format))
-            ImageSVGPath (i, stdout, 1);
-         else
-            ImageWriteSVG (i, stdout, 0, -1, barcode, scale);
+         ImageSVGPath (i, stdout, 1);
          ImageFree (i);
+         if (!isupper (*format))
+         {
+            printf ("\"");
+            if (S > 1)
+               printf (" transform=\"scale(%d)\"", S);
+            printf ("/>");
+            printf ("\"/></svg>");
+         }
       }
       break;
    case 'd':                   // data: URI
